@@ -1,0 +1,29 @@
+# Core AI
+anthropic>=0.40.0
+
+# Polymarket trading
+py-clob-client>=0.14.0
+web3>=6.11.0
+
+# Twitter/X
+tweepy>=4.14.0
+
+# Telegram
+telethon>=1.34.0
+
+# News & Web
+requests>=2.31.0
+aiohttp>=3.9.0
+beautifulsoup4>=4.12.0
+feedparser>=6.0.10
+praw>=7.7.1
+
+# Data & Utils
+python-dotenv>=1.0.0
+pandas>=2.1.0
+numpy>=1.24.0
+apscheduler>=3.10.4
+
+# Display
+rich>=13.7.0
+colorlog>=6.8.0

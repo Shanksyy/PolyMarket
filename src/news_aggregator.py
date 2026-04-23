@@ -78,6 +78,14 @@ class NewsAggregator:
         self._twitter_client = None
         self._telegram_client = None
         self._tg_started = False
+        # Bullpen is optional — only used if CLI is installed
+        try:
+            from src.bullpen_tracker import BullpenTracker
+            self._bullpen = BullpenTracker() if BullpenTracker().is_available() else None
+        except Exception:
+            self._bullpen = None
+        if self._bullpen:
+            logger.info("Bullpen CLI detected — smart money signals enabled")
 
     async def gather(self, market: dict) -> list[dict[str, Any]]:
         """
@@ -94,6 +102,7 @@ class NewsAggregator:
             self._cryptopanic(keywords, market),
             self._reddit(keywords),
             self._twitter(keywords),
+            self._bullpen_signals(market),
         ]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -308,6 +317,19 @@ class NewsAggregator:
             return articles
         except Exception as exc:
             logger.debug("Twitter error: %s", exc)
+            return []
+
+    async def _bullpen_signals(self, market: dict) -> list[dict]:
+        """Bullpen smart money + tracker trade signals (optional, requires CLI)."""
+        if not self._bullpen:
+            return []
+        loop = asyncio.get_event_loop()
+        try:
+            return await loop.run_in_executor(
+                None, self._bullpen.smart_money_as_articles, market
+            )
+        except Exception as exc:
+            logger.debug("Bullpen signal error: %s", exc)
             return []
 
     # ── Utilities ─────────────────────────────────────────────────────────────

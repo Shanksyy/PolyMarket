@@ -268,6 +268,64 @@ else:
     df_chart = df_chart.set_index("closed_at")
     st.line_chart(df_chart["Cumulative PnL ($)"], use_container_width=True, height=300)
 
+# ── Bullpen tracker ───────────────────────────────────────────────────────────
+
+st.divider()
+st.subheader("🐋 Bullpen Smart Money")
+
+try:
+    sys.path.insert(0, str(BASE_DIR))
+    from src.bullpen_tracker import BullpenTracker
+    _bp = BullpenTracker()
+    _bp_available = _bp.is_available()
+except Exception:
+    _bp_available = False
+
+if not _bp_available:
+    st.info(
+        "Bullpen CLI not installed. Install it to see smart money signals and tracker trades.\n\n"
+        "```\nnpm install -g @bullpenfi/cli\nbullpen login\n```"
+    )
+else:
+    bp_tab1, bp_tab2, bp_tab3 = st.tabs(["Smart Money", "Tracker Feed", "Leaderboard"])
+
+    with bp_tab1:
+        try:
+            sm = _bp.get_smart_money(limit=20)
+            if sm:
+                st.dataframe(pd.DataFrame(sm), use_container_width=True, hide_index=True)
+            else:
+                st.info("No smart money signals available right now.")
+        except Exception as e:
+            st.warning(f"Could not fetch smart money data: {e}")
+
+    with bp_tab2:
+        try:
+            trades = _bp.get_tracker_trades(limit=25)
+            following = _bp.get_following()
+            if following:
+                st.caption(f"Following {len(following)} address(es)")
+            if trades:
+                st.dataframe(pd.DataFrame(trades), use_container_width=True, hide_index=True)
+            else:
+                st.info(
+                    "No tracker trades yet. Follow some wallets to see their activity:\n\n"
+                    "```\nbullpen tracker follow <ADDRESS>\n```"
+                )
+        except Exception as e:
+            st.warning(f"Could not fetch tracker trades: {e}")
+
+    with bp_tab3:
+        try:
+            lb = _bp.get_leaderboard(period="week", limit=25)
+            if lb:
+                st.caption("Top traders this week by P&L")
+                st.dataframe(pd.DataFrame(lb), use_container_width=True, hide_index=True)
+            else:
+                st.info("Leaderboard data unavailable.")
+        except Exception as e:
+            st.warning(f"Could not fetch leaderboard: {e}")
+
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 
 with st.sidebar:

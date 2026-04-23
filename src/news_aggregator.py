@@ -17,14 +17,44 @@ from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import quote_plus
 
+import xml.etree.ElementTree as ET
+
 import aiohttp
-import feedparser
 
 from config import settings
 
 logger = logging.getLogger(__name__)
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+
+def _parse_rss(xml_text: str) -> list[dict]:
+    """Parse RSS/Atom feed XML using the standard library."""
+    items = []
+    try:
+        root = ET.fromstring(xml_text)
+        ns = {"atom": "http://www.w3.org/2005/Atom"}
+        # RSS 2.0
+        for item in root.iter("item"):
+            items.append({
+                "title": (item.findtext("title") or "").strip(),
+                "summary": (item.findtext("description") or "").strip(),
+                "link": (item.findtext("link") or "").strip(),
+                "published": (item.findtext("pubDate") or "").strip(),
+            })
+        # Atom
+        if not items:
+            for entry in root.iter("{http://www.w3.org/2005/Atom}entry"):
+                link_el = entry.find("{http://www.w3.org/2005/Atom}link")
+                items.append({
+                    "title": (entry.findtext("{http://www.w3.org/2005/Atom}title") or "").strip(),
+                    "summary": (entry.findtext("{http://www.w3.org/2005/Atom}summary") or "").strip(),
+                    "link": (link_el.get("href") if link_el is not None else ""),
+                    "published": (entry.findtext("{http://www.w3.org/2005/Atom}updated") or "").strip(),
+                })
+    except ET.ParseError:
+        pass
+    return items
 
 
 def _clean(text: str) -> str:
@@ -96,15 +126,14 @@ class NewsAggregator:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
                     text = await resp.text()
-            feed = feedparser.parse(text)
             articles = []
-            for entry in feed.entries[:15]:
+            for item in _parse_rss(text)[:15]:
                 articles.append({
                     "source": "Google News",
-                    "title": _clean(entry.get("title", "")),
-                    "summary": _excerpt(entry.get("summary", entry.get("title", ""))),
-                    "url": entry.get("link", ""),
-                    "published_at": entry.get("published", ""),
+                    "title": _clean(item.get("title", "")),
+                    "summary": _excerpt(item.get("summary", item.get("title", ""))),
+                    "url": item.get("link", ""),
+                    "published_at": item.get("published", ""),
                 })
             return articles
         except Exception as exc:
@@ -128,8 +157,7 @@ class NewsAggregator:
                         url, timeout=aiohttp.ClientTimeout(total=8)
                     ) as resp:
                         text = await resp.text()
-                    feed = feedparser.parse(text)
-                    for entry in feed.entries[:8]:
+                    for entry in _parse_rss(text)[:8]:
                         articles.append({
                             "source": name,
                             "title": _clean(entry.get("title", "")),

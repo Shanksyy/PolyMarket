@@ -1,0 +1,23 @@
+# Environment / secrets — never commit
+.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Data files (runtime state)
+data/portfolio.json
+data/trades.json
+
+# Logs
+logs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
